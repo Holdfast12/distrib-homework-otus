@@ -1,0 +1,13 @@
+установил средства разработчика
+sudo dnf -y install rpmdevtools rpm-build
+
+создал каталог под сборку rpmbuild
+rpmdev-setuptree
+
+скачал rpm с исходным кодом apache
+dnf download --source httpd
+
+распаковал его в rpmbuild
+rpm -i httpd-2.4.37-47.module_el8.6.0+2935+fb177b09.2.src.rpm
+
+
