@@ -1,140 +1,70 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-require 'open3'
-require 'fileutils'
-
-def get_vm_name(id)
-  out, err = Open3.capture2e('VBoxManage list vms')
-  raise out unless err.exitstatus.zero?
-
-  path = path = File.dirname(__FILE__).split('/').last
-  name = out.split(/\n/)
-            .select { |x| x.start_with? "\"#{path}_#{id}" }
-            .map { |x| x.tr('"', '') }
-            .map { |x| x.split(' ')[0].strip }
-            .first
-
-  name
-end
-
-
-def controller_exists(name, controller_name)
-  return false if name.nil?
-
-  out, err = Open3.capture2e("VBoxManage showvminfo #{name}")
-  raise out unless err.exitstatus.zero?
-
-  out.split(/\n/)
-     .select { |x| x.start_with? 'Storage Controller Name' }
-     .map { |x| x.split(':')[1].strip }
-     .any? { |x| x == controller_name }
-end
-
-
-# add NVME disks
-def create_nvme_disks(vbox, name)
-  unless controller_exists(name, 'NVME Controller')
-    vbox.customize ['storagectl', :id,
-                    '--name', 'NVME Controller',
-                    '--add', 'pcie']
-  end
-
-  dir = "../vdisks"
-  FileUtils.mkdir_p dir unless File.directory?(dir)
-
-  disks = (0..6).map { |x| ["nvmedisk#{x}_", '1024'] }
-
-  disks.each_with_index do |(name, size), i|
-    file_to_disk = "#{dir}/#{name}.vdi"
-    port = (i ).to_s
-
-    unless File.exist?(file_to_disk)
-      vbox.customize ['createmedium',
-                      'disk',
-                      '--filename',
-                      file_to_disk,
-                      '--size',
-                      size,
-                      '--format',
-                      'VDI',
-                      '--variant',
-                      'standard']
-    end
-
-    vbox.customize ['storageattach', :id,
-                    '--storagectl', 'NVME Controller',
-                    '--port', port,
-                    '--type', 'hdd',
-                    '--medium', file_to_disk,
-                    '--device', '0']
-
-  end
-end
-
-
-def create_disks(vbox, name)
-  unless controller_exists(name, 'SATA Controller')
-    vbox.customize ['storagectl', :id,
-                    '--name', 'SATA Controller',
-                    '--add', 'sata']
-  end
-
-  dir = "../vdisks"
-  FileUtils.mkdir_p dir unless File.directory?(dir)
-
-  disks = (1..10).map { |x| ["disk#{x}_", '1024'] }
-
-  disks.each_with_index do |(name, size), i|
-    file_to_disk = "#{dir}/#{name}.vdi"
-    port = (i + 1).to_s
-
-    unless File.exist?(file_to_disk)
-      vbox.customize ['createmedium',
-                      'disk',
-                      '--filename',
-                      file_to_disk,
-                      '--size',
-                      size,
-                      '--format',
-                      'VDI',
-                      '--variant',
-                      'standard']
-    end
-
-    vbox.customize ['storageattach', :id,
-                    '--storagectl', 'SATA Controller',
-                    '--port', port,
-                    '--type', 'hdd',
-                    '--medium', file_to_disk,
-                    '--device', '0']
-
-    vbox.customize ['setextradata', :id,
-                    "VBoxInternal/Devices/ahci/0/Config/Port#{port}/SerialNumber",
-                    name.ljust(20, '0')]
-  end
-end
-
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
 Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
 
-config.vm.define "server" do |server|
-  #config.vm.box = 'centos/8'
-  config.vm.box = 'almalinux/8'
-  #config.vm.box_version = "2011.0"
-  server.vm.host_name = 'server'
-# server.vm.network :private_network, ip: "10.0.0.41"
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  config.vm.box = "almalinux/8"
 
-  server.vm.provider "virtualbox" do |vb|
-    vb.memory = "1024"
-    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-  end
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
 
-  server.vm.provider 'virtualbox' do |vbx|
-      name = get_vm_name('server')
-      create_disks(vbx, name)
-      create_nvme_disks(vbx, name)
-  end
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
 
-end
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
 
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+  # config.vm.synced_folder "../data", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  # config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+  #   vb.gui = true
+  #
+  #   # Customize the amount of memory on the VM:
+  #   vb.memory = "1024"
+  # end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Ansible, Chef, Docker, Puppet and Salt are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   apt-get update
+  #   apt-get install -y apache2
+  # SHELL
 end
