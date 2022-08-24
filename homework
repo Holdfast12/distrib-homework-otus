@@ -1,5 +1,8 @@
-установил средства разработчика
-sudo dnf -y install rpmdevtools rpm-build
+установил средства разработчика и зависимости для сборки apache
+sudo dnf group install "Development Tools"
+sudo dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+sudo dnf config-manager --set-enabled powertools
+sudo dnf -y install rpmdevtools rpm-build apr-devel apr-util-devel autoconf brotli-devel libselinux-devel libxml2-devel lua-devel openssl-devel pcre-devel perl-generators systemd-devel xmlto rpmlint
 
 создал каталог под сборку rpmbuild
 rpmdev-setuptree
@@ -9,5 +12,12 @@ dnf download --source httpd
 
 распаковал его в rpmbuild
 rpm -i httpd-2.4.37-47.module_el8.6.0+2935+fb177b09.2.src.rpm
+
+отредактировал spec файл и отключил что то связанное с ldap
+ --disable-ldap --disable-authnz-ldap \
+
+
+запустил сборку
+rpmbuild -ba SPECS/httpd.spec
 
 
