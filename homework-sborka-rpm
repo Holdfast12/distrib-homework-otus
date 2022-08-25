@@ -1,0 +1,27 @@
+#установил средства разработчика и зависимости для сборки transmission-daemon
+sudo dnf group -y install "Development Tools"
+sudo dnf -y install rpmdevtools
+sudo dnf config-manager --set-enabled powertools
+sudo dnf -y install dbus-glib-devel desktop-file-utils glib2-devel gtk3-devel libappindicator-gtk3-devel libcanberra-devel libcurl-devel libevent-devel libnatpmp-devel libnotify-devel openssl-devel qt5-qtbase-devel systemd-devel intltool
+
+создал каталог под сборку rpmbuild
+rpmdev-setuptree
+
+скачал rpm с исходным кодом apache
+dnf download --source transmission-daemon
+
+распаковал его в rpmbuild
+rpm -i transmission-3.00-1.el8.src.rpm
+
+запустил сборку
+rpmbuild -bb ./rpmbuild/SPECS/transmission.spec
+
+dnf config-manager --set-disabled epel
+sudo mkdir -p /home/vagrant/repos/almalinux8/
+sudo createrepo /home/vagrant/repos/almalinux8/
+
+sudo cp ./rpmbuild/RPMS/x86_64/transmission-* /home/vagrant/repos/almalinux8/
+sudo createrepo /home/vagrant/repos/almalinux8/
+sudo chown -R vagrant:vagrant /home/vagrant/
+
+echo -en "[local]\nname=Local\nbaseurl=file:///home/vagrant/repos/almalinux8/\nenabled=1\ngpgcheck=0\n\n" | sudo tee /etc/yum.repos.d/local.repo
